@@ -5,166 +5,93 @@ const app = express()
 const port = process.env.PORT || 3000
 
 // ==============================
-// 🏠 HOME
+// 🏠 WEB UI
 // ==============================
 app.get('/', (req, res) => {
-  res.send('🚀 Agoy API berjalan')
-})
-
-// ==============================
-// 📊 STATUS
-// ==============================
-app.get('/api', (req, res) => {
-  res.json({
-    status: true,
-    message: "API berjalan",
-    author: "Agoy 😎"
-  })
-})
-
-// ==============================
-// 🎵 TIKTOK DOWNLOADER
-// ==============================
-app.get('/tiktok', async (req, res) => {
-  const url = req.query.url
-
-  if (!url) {
-    return res.json({
-      status: false,
-      message: "Masukkan URL TikTok"
-    })
-  }
-
-  try {
-    const api = await axios.get(
-      `https://tikwm.com/api/?url=${encodeURIComponent(url)}`
-    )
-
-    const data = api.data?.data
-
-    if (!data) {
-      return res.json({
-        status: false,
-        message: "Gagal ambil data"
-      })
-    }
-
-    res.json({
-      status: true,
-      title: data.title,
-      video: data.play,
-      audio: data.music,
-      author: data.author?.nickname
-    })
-
-  } catch (err) {
-    res.json({
-      status: false,
-      message: "Server error"
-    })
-  }
-})
-
-// ==============================
-// 🔍 CEK LINK (NO API KEY)
-// ==============================
-app.get('/cek-link', (req, res) => {
-  const url = req.query.url
-
-  if (!url) {
-    return res.json({
-      status: false,
-      message: "Masukkan URL"
-    })
-  }
-
-  let score = 0
-  let alasan = []
-
-  if (url.includes("@")) {
-    score += 3
-    alasan.push("Mengandung '@'")
-  }
-
-  if (url.includes("bit.ly")) {
-    score += 2
-    alasan.push("Shortlink")
-  }
-
-  if (url.includes(".xyz")) {
-    score += 2
-    alasan.push("Domain aneh")
-  }
-
-  if (url.length > 75) {
-    score += 1
-    alasan.push("URL terlalu panjang")
-  }
-
-  let result = "AMAN ✅"
-
-  if (score >= 5) {
-    result = "BERBAHAYA ⚠️"
-  } else if (score >= 2) {
-    result = "MENCURIGAKAN 🤔"
-  }
-
-  res.json({
-    status: true,
-    url,
-    result,
-    score,
-    alasan
-  })
-})
-
-// ==============================
-// 🎥 EXTRACT VIDEO (SIMPLE)
-// ==============================
-app.get('/extract-video', async (req, res) => {
-  const url = req.query.url
-
-  if (!url) {
-    return res.json({
-      status: false,
-      message: "Masukkan URL"
-    })
-  }
-
-  try {
-    const { data } = await axios.get(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        "Referer": url
+  res.send(`
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <title>Agoy API Tools</title>
+    <style>
+      body {
+        font-family: Arial;
+        background: #0f172a;
+        color: white;
+        text-align: center;
+        padding-top: 50px;
       }
-    })
+      .box {
+        background: #1e293b;
+        padding: 20px;
+        margin: auto;
+        width: 350px;
+        border-radius: 10px;
+      }
+      input {
+        width: 90%;
+        padding: 10px;
+        border-radius: 5px;
+        border: none;
+      }
+      button {
+        padding: 10px;
+        margin-top: 10px;
+        width: 95%;
+        border: none;
+        border-radius: 5px;
+        background: #22c55e;
+        color: white;
+        cursor: pointer;
+      }
+      video {
+        width: 100%;
+        margin-top: 10px;
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body>
 
-    const video =
-      data.match(/https?:\/\/[^"' ]+\.(mp4|m3u8|webm)/)?.[0]
+    <h1>🚀 Agoy API Tools</h1>
 
-    if (!video) {
-      return res.json({
-        status: false,
-        message: "Video tidak ditemukan"
-      })
-    }
+    <div class="box">
+      <input id="url" placeholder="Paste link disini...">
 
-    res.json({
-      status: true,
-      video
-    })
+      <button onclick="cek()">🔍 Cek Link</button>
+      <button onclick="tiktok()">🎵 Download TikTok</button>
+      <button onclick="extract()">🎥 Extract Video</button>
 
-  } catch (err) {
-    res.json({
-      status: false,
-      message: "Gagal ambil video"
-    })
-  }
-})
+      <p id="status"></p>
+      <video id="video" controls style="display:none;"></video>
+    </div>
 
-// ==============================
-// 🚀 RUN SERVER
-// ==============================
-app.listen(port, () => {
-  console.log("🚀 Server jalan di port " + port)
-})
+    <script>
+      async function cek() {
+        let url = document.getElementById('url').value
+        let status = document.getElementById('status')
+
+        status.innerText = "⏳ Mengecek..."
+
+        let res = await fetch('/cek-link?url=' + encodeURIComponent(url))
+        let data = await res.json()
+
+        status.innerText = data.result + " (score: " + data.score + ")"
+      }
+
+      async function tiktok() {
+        let url = document.getElementById('url').value
+        let status = document.getElementById('status')
+        let video = document.getElementById('video')
+
+        status.innerText = "⏳ Download TikTok..."
+
+        let res = await fetch('/tiktok?url=' + encodeURIComponent(url))
+        let data = await res.json()
+
+        if (data.status) {
+          video.src = data.video
+          video.style.display = "block"
+          status.innerText = "✅ Sukses"
+        } else {
+          status
